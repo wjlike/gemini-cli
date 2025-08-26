@@ -26,15 +26,20 @@ async function getProcessInfo(pid: number): Promise<{
 }> {
   const platform = os.platform();
   if (platform === 'win32') {
-    const command = `wmic process where "ProcessId=${pid}" get Name,ParentProcessId,CommandLine /value`;
-    const { stdout } = await execAsync(command);
-    const nameMatch = stdout.match(/Name=([^\n]*)/);
-    const processName = nameMatch ? nameMatch[1].trim() : '';
-    const ppidMatch = stdout.match(/ParentProcessId=(\d+)/);
-    const parentPid = ppidMatch ? parseInt(ppidMatch[1], 10) : 0;
-    const commandLineMatch = stdout.match(/CommandLine=([^\n]*)/);
-    const commandLine = commandLineMatch ? commandLineMatch[1].trim() : '';
-    return { parentPid, name: processName, command: commandLine };
+    //const command = `wmic process where "ProcessId=${pid}" get Name,ParentProcessId,CommandLine /value`;
+     const { stdout } = await execAsync(`powershell "$p = Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}' -ErrorAction SilentlyContinue; if ($p) { @{Name=$p.Name;ParentProcessId=$p.ParentProcessId;CommandLine=$p.CommandLine} | ConvertTo-Json }"`);
+    //const { stdout } = await execAsync(command);
+     if (!output) return { parentPid: 0, name: '', command: '' };
+
+    const { Name = '', ParentProcessId = 0, CommandLine = '' } = JSON.parse(output);
+    return { parentPid: ParentProcessId, name: Name, command: CommandLine };
+    // const nameMatch = stdout.match(/Name=([^\n]*)/);
+    // const processName = nameMatch ? nameMatch[1].trim() : '';
+    // const ppidMatch = stdout.match(/ParentProcessId=(\d+)/);
+    // const parentPid = ppidMatch ? parseInt(ppidMatch[1], 10) : 0;
+    // const commandLineMatch = stdout.match(/CommandLine=([^\n]*)/);
+    // const commandLine = commandLineMatch ? commandLineMatch[1].trim() : '';
+    // return { parentPid, name: processName, command: commandLine };
   } else {
     const command = `ps -o ppid=,command= -p ${pid}`;
     const { stdout } = await execAsync(command);
